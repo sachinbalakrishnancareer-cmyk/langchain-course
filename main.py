@@ -1,3 +1,5 @@
+from typing import List
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv() 
@@ -9,13 +11,26 @@ from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 
 
+class Source(BaseModel):
+    """Schema for a source used by the agent"""
+
+    url:str = Field(description="The url of the source")
+
+
+class AgentResponse(BaseModel):
+    """Schema for the agent response with answer and sources"""
+
+    answer:str = Field(description="The agent's answer to the query")
+    sources:List[Source] = Field(default_factory=list, description="List of sources used to generate answers")
+
+
 llm = ChatOpenAI(model="gpt-5") 
 tools = [TavilySearch()]
-agent = create_agent(model=llm, tools=tools)
+agent = create_agent(model=llm, tools=tools, response_format=AgentResponse)
 
 def main():
     print("Hello from langchain-course!")
-    result = agent.invoke({"messages": HumanMessage(content="Search Linkedin for Data Scientist L5 positions in Amazon or AWS in Seattle or Virginia and list the details")})
+    result = agent.invoke({"messages": HumanMessage(content="Search Linkedin for any 2 Data Scientist L5 positions in Amazon or AWS in Seattle and list the details")})
     print(result)
 
 if __name__ == "__main__":
