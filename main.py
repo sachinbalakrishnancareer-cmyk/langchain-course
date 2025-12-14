@@ -16,12 +16,9 @@ from schemas import AgentResponse
 
 tools = [TavilySearch()]
 llm = ChatOpenAI(model="gpt-4")
+structured_llm = llm.with_structured_output(AgentResponse)
 react_prompt = hub.pull("hwchase17/react")
 output_parser = PydanticOutputParser(pydantic_object=AgentResponse)
-react_prompt_with_format_instructions = PromptTemplate(
-    template=REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS, 
-    input_variables=["input", "agent_scratchpad", "tool_names"]
-).partial(format_instructions=output_parser.get_format_instructions())
 
 # Returns a runnable (chain) we saw in the initial lessons (Non formatted)
 # agent = create_react_agent(
@@ -29,6 +26,25 @@ react_prompt_with_format_instructions = PromptTemplate(
 #     tools=tools, 
 #     prompt=react_prompt
 # )
+
+# With Tool Calling + Pydantic Parser
+# react_prompt_with_format_instructions = PromptTemplate(
+#     template=REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS, 
+#     input_variables=["input", "agent_scratchpad", "tool_names"]
+# ).partial(format_instructions=output_parser.get_format_instructions())
+
+# Formatted Instructions with Pydantic approach. Replaced ordinary react_prompt
+# agent = create_react_agent(
+#     llm=llm, 
+#     tools=tools, 
+#     prompt=react_prompt_with_format_instructions
+# )
+
+#  With Function Calling. Corresponding to structured_llm = llm.with_structured_output(AgentResponse)
+react_prompt_with_format_instructions = PromptTemplate(
+    template=REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS, 
+    input_variables=["input", "agent_scratchpad", "tool_names"]
+).partial(format_instructions="")
 
 # Formatted Instructions with Pydantic approach. Replaced ordinary react_prompt
 agent = create_react_agent(
@@ -39,13 +55,16 @@ agent = create_react_agent(
 
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 extract_output = RunnableLambda(lambda x: x["output"])
-parse_output = RunnableLambda(lambda x: output_parser.parse(x))
+
+# parse_output = RunnableLambda(lambda x: output_parser.parse(x))
 
 # Flow :
 # 1. create_react_agent retuns a ruunable chain taking in the input prompt, tools and send it to LLM
 # 2. LLM returns a response and the agent_executor runs the tool or another llm prompt to orchestrate the whole process
 
-chain = agent_executor | extract_output | parse_output
+# chain = agent_executor | extract_output | parse_output
+
+chain = agent_executor | extract_output | structured_llm
 
 
 def main():
